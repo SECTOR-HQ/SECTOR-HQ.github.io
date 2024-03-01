@@ -25,7 +25,7 @@
                     backgroundColor: planetsWithPlayers[planet.index] > 0 ? 'rgba(0, 191, 255, 0.7)' : 'rgba(255, 99, 132, 0.7)' // Differentiating colors
                 }));
     
-                var ctx = document.getElementById('galaxyMap').getContext('2d');
+                var ctx = document.getElementById('planetPositionsChart').getContext('2d');
                 new Chart(ctx, {
                     type: 'bubble',
                     data: {
