@@ -9,35 +9,57 @@
 <body>
     <canvas id="planetPositionsChart" width="600" height="400"></canvas>
     <script>
-        // Fetch war status and war info data
-        Promise.all([
-            fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/data/warStatus.json').then(response => response.json()),
-            fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/data/warInfo.json').then(response => response.json())
-        ]).then(([warStatus, warInfo]) => {
-            const planetsWithPlayers = warStatus.planetStatus.filter(planet => planet.players > 0);
-            const planetIndicesWithPlayers = new Set(planetsWithPlayers.map(p => p.index));
-
-            const planetPositions = warInfo.planetInfos
-                .filter(planet => planetIndicesWithPlayers.has(planet.index))
-                .map(planet => ({ x: planet.position.x, y: planet.position.y }));
-
-            var ctx = document.getElementById('planetPositionsChart').getContext('2d');
-            var chart = new Chart(ctx, {
-                type: 'scatter',
-                data: {
-                    datasets: [{
-                        label: 'Planets with Players',
-                        data: planetPositions,
-                        backgroundColor: 'rgb(255, 99, 132)'
-                    }]
-                },
-                options: {
-                    scales: {
-                        x: {type: 'linear', position: 'bottom'},
-                        y: {type: 'linear', position: 'left'}
+        fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/data/warStatus.json').then(response => response.json()).then(warStatus => {
+            fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/data/warInfo.json').then(response => response.json()).then(warInfo => {
+                const planetsWithPlayers = warStatus.planetStatus.reduce((acc, planet) => {
+                    acc[planet.index] = planet.players;
+                    return acc;
+                }, {});
+    
+                const planetPositions = warInfo.planetInfos.map(planet => ({
+                    x: planet.position.x,
+                    y: planet.position.y,
+                    r: 3, // Radius of the planets on the graph
+                    players: planetsWithPlayers[planet.index] || 0, // Players count
+                    backgroundColor: planetsWithPlayers[planet.index] > 0 ? 'rgba(0, 191, 255, 0.7)' : 'rgba(255, 99, 132, 0.7)' // Differentiating colors
+                }));
+    
+                var ctx = document.getElementById('galaxyMap').getContext('2d');
+                new Chart(ctx, {
+                    type: 'bubble',
+                    data: {
+                        datasets: [{
+                            label: 'Planets',
+                            data: planetPositions,
+                            backgroundColor: function(context) {
+                                var index = context.dataIndex;
+                                var value = context.dataset.data[index];
+                                return value.backgroundColor;
+                            }
+                        }]
+                    },
+                    options: {
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        var label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        label += `Players: ${context.raw.players}`;
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {type: 'linear', position: 'bottom'},
+                            y: {type: 'linear', position: 'left'}
+                        }
                     }
-                }
-            });
+                });
+            }).catch(error => console.error('Error loading data:', error));
         }).catch(error => console.error('Error loading data:', error));
     </script>
 </body>
