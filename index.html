@@ -5,20 +5,38 @@
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         .planet {
-            fill-opacity: 0.7;
-            stroke: #fff;
-            stroke-width: 1.5px;
+            stroke: #fff; /* Default stroke color */
+            stroke-width: 1px; /* Default stroke width */
+            cursor: pointer; /* Change cursor to a pointer to indicate interactivity */
         }
-        .sector {
-            fill-opacity: 0.2;
-            stroke: #000;
-            stroke-width: 1;
+
+        .tooltip {
+            position: absolute;
+            background-color: lightsteelblue;
+            padding: 8px;
+            border-radius: 6px;
+            text-align: left; /* Align text to the left */
+            visibility: hidden; /* Initially hidden, use visibility to hide but keep space */
+            opacity: 0; /* Start fully transparent */
+            transition: opacity 0.3s; /* Smooth transition for opacity */
+            pointer-events: none;
+            color: #000; /* Text color */
+            font-size: 12px; /* Text size */
+            z-index: 10; /* Ensure tooltip is above other elements */
+        }
+        
+        .planet:hover {
+            stroke: yellow;
+            stroke-width: 2px;
         }
     </style>
 </head>
 <body>
-    <svg width="800" height="600"></svg>
+    <svg width="800" height="800"></svg>
+    <div class="tooltip"></div> <!-- Tooltip container -->
     <script>
+        const tooltip = d3.select('.tooltip');
+
         Promise.all([
             fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/data/warStatus.json').then(res => res.json()),
             fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/data/warInfo.json').then(res => res.json())
@@ -28,16 +46,31 @@
                 return acc;
             }, {});
 
+            const planetsWithOwner = warStatus.planetStatus.reduce((acc, planet) => {
+                acc[planet.index] = planet.owner;
+                return acc;
+            }, {});
+
+            const planetsWithHealth = warStatus.planetStatus.reduce((acc, planet) => {
+                acc[planet.index] = planet.health;
+                return acc;
+            }, {});
+
             const sectorColors = d3.scaleOrdinal(d3.schemeCategory10); // For unique sector colors
 
             const planetPositions = warInfo.planetInfos.map(planet => {
                 const players = planetsWithPlayers[planet.index] || 0;
+                const owner = planetsWithOwner[planet.index] || 0;
+                const health = planetsWithHealth[planet.index] || 0;
                 return {
-                    x: planet.position.x * 1000 + 400, // Scale and translate for visibility
-                    y: planet.position.y * 1000 + 300,
-                    r: 3 + players / 100, // Example scaling of radius based on players
+                    x: planet.position.x * 400 +(800/2), // Scale and translate for visibility
+                    y: planet.position.y * 400 +(800/2),
+                    r: 3, 
                     players: players,
                     sector: planet.sector,
+                    owner: owner,
+                    health: health,
+                    maxHealth: planet.maxHealth, 
                     backgroundColor: players > 0 ? 'rgba(0, 191, 255, 0.7)' : 'rgba(255, 99, 132, 0.7)'
                 };
             });
@@ -47,26 +80,37 @@
 
         function renderVisualization(planets, sectorColors) {
             const svg = d3.select('svg');
-
-            // Draw sector backgrounds
-            planets.forEach(d => {
-                svg.append('circle')
-                    .attr('cx', d.x)
-                    .attr('cy', d.y)
-                    .attr('r', 20) // Example static radius for sector background
-                    .attr('fill', sectorColors(d.sector))
-                    .attr('class', 'sector');
-            });
-
+            
+            
             // Draw planets
-            planets.forEach(d => {
-                svg.append('circle')
-                    .attr('cx', d.x)
-                    .attr('cy', d.y)
-                    .attr('r', d.r)
-                    .attr('fill', d.backgroundColor)
-                    .attr('class', 'planet');
-            });
+            svg.selectAll('.planet')
+                .data(planets)
+                .enter().append('circle')
+                .attr('class', 'planet')
+                .attr('cx', d => d.x)
+                .attr('cy', d => d.y)
+                .attr('r', d => d.r)
+                .attr('fill', d => d.backgroundColor)
+                .attr('stroke', '#fff')
+                .attr('stroke-width', '1px')
+                .on('mouseover', function(event, d) {
+                    tooltip.html(`<strong>Sector:</strong> ${d.sector}<br>
+                                  <strong>Owner:</strong> ${d.owner}<br>
+                                  <strong>Health:</strong> ${d.health}/${d.maxHealth}<br>
+                                  <strong>Players:</strong> ${d.players}`)
+                           .style('visibility', 'visible')
+                           .style('opacity', 1)
+                           .style('left', `${event.pageX + 10}px`)
+                           .style('top', `${event.pageY + 10}px`);
+                })
+                .on('mousemove', function(event) {
+                    tooltip.style('left', `${event.pageX + 10}px`)
+                           .style('top', `${event.pageY + 10}px`);
+                })
+                .on('mouseout', function() {
+                    tooltip.style('visibility', 'hidden')
+                    .style('opacity', 0);
+                });
         }
     </script>
 </body>
