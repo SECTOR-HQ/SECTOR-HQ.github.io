@@ -11,8 +11,8 @@
     <script>
         // Fetch war status and war info data
         Promise.all([
-            fetch('data/warStatus.json').then(response => response.json()),
-            fetch('data/warInfo.json').then(response => response.json())
+            fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/data/warStatus.json').then(response => response.json()),
+            fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/data/warInfo.json').then(response => response.json())
         ]).then(([warStatus, warInfo]) => {
             const planetsWithPlayers = warStatus.planetStatus.filter(planet => planet.players > 0);
             const planetIndicesWithPlayers = new Set(planetsWithPlayers.map(p => p.index));
