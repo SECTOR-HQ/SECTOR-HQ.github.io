@@ -10,7 +10,7 @@ jobs:
     - name: Checkout Repo
       uses: actions/checkout@v2
       with:
-        token: ${{ secrets.REPO_ACCESS_TOKEN }} # Use the PAT stored as a secret
+        token: ${{ secrets.TOKEN }} # Use the PAT stored as a secret
     
     - name: Fetch JSON Data
       id: fetchdata
