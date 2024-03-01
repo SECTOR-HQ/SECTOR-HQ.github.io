@@ -15,7 +15,7 @@ jobs:
     - name: Fetch JSON Data
       id: fetchdata
       run: |
-        mkdir data
+        mkdir -p data
         curl -o data/warStatus.json https://api.live.prod.thehelldiversgame.com/api/WarSeason/801/Status -H "Accept-Language: en-US,en;q=0.5"
         curl -o data/warInfo.json https://api.live.prod.thehelldiversgame.com/api/WarSeason/801/warinfo -H "Accept-Language: en-US,en;q=0.5"
     
