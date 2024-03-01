@@ -7,31 +7,44 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <canvas id="planetPositionsChart" width="600" height="400"></canvas>
+    <canvas id="sectorBlobChart" width="600" height="400"></canvas>
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/data/warStatus.json').then(response => response.json()).then(warStatus => {
             fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/data/warInfo.json').then(response => response.json()).then(warInfo => {
-                const planetsWithPlayers = warStatus.planetStatus.reduce((acc, planet) => {
-                    acc[planet.index] = planet.players;
+                const sectorPlayers = warInfo.planetInfos.reduce((acc, planet) => {
+                    const players = warStatus.planetStatus.find(p => p.index === planet.index).players;
+                    acc[planet.sector] = acc[planet.sector] || 0;
+                    acc[planet.sector] += players;
                     return acc;
                 }, {});
-    
-                const planetPositions = warInfo.planetInfos.map(planet => ({
-                    x: planet.position.x,
-                    y: planet.position.y,
-                    r: 3, // Radius of the planets on the graph
-                    players: planetsWithPlayers[planet.index] || 0, // Players count
-                    backgroundColor: planetsWithPlayers[planet.index] > 0 ? 'rgba(0, 191, 255, 0.7)' : 'rgba(255, 99, 132, 0.7)' // Differentiating colors
-                }));
-    
-                var ctx = document.getElementById('planetPositionsChart').getContext('2d');
+
+                const sectorCentroids = warInfo.planetInfos.reduce((acc, planet) => {
+                    acc[planet.sector] = acc[planet.sector] || { x: 0, y: 0, count: 0 };
+                    acc[planet.sector].x += planet.position.x;
+                    acc[planet.sector].y += planet.position.y;
+                    acc[planet.sector].count += 1;
+                    return acc;
+                }, {});
+
+                const sectorBlobs = Object.keys(sectorCentroids).map(sector => {
+                    const centroid = sectorCentroids[sector];
+                    return {
+                        x: centroid.x / centroid.count,
+                        y: centroid.y / centroid.count,
+                        r: 20, // Adjust the radius for visual preference
+                        players: sectorPlayers[sector],
+                        backgroundColor: sectorPlayers[sector] > 0 ? 'rgba(0, 191, 255, 0.7)' : 'rgba(255, 99, 132, 0.7)'
+                    };
+                });
+
+                var ctx = document.getElementById('sectorBlobChart').getContext('2d');
                 new Chart(ctx, {
                     type: 'bubble',
                     data: {
                         datasets: [{
-                            label: 'Planets',
-                            data: planetPositions,
+                            label: 'Sectors',
+                            data: sectorBlobs,
                             backgroundColor: function(context) {
                                 var index = context.dataIndex;
                                 var value = context.dataset.data[index];
@@ -44,11 +57,8 @@
                             tooltip: {
                                 callbacks: {
                                     label: function(context) {
-                                        var label = context.dataset.label || '';
-                                        if (label) {
-                                            label += ': ';
-                                        }
-                                        label += `Players: ${context.raw.players}`;
+                                        var label = `Sector: ${context.dataset.data[context.dataIndex].sector || ''}`;
+                                        label += `\nPlayers: ${context.raw.players}`;
                                         return label;
                                     }
                                 }
