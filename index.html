@@ -8,6 +8,9 @@
 </head>
 <body>
     <canvas id="planetPositionsChart" width="600" height="400"></canvas>
+    document.addEventListener('DOMContentLoaded', function() {
+    // Your script here
+
     <script>
         fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/data/warStatus.json').then(response => response.json()).then(warStatus => {
             fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/data/warInfo.json').then(response => response.json()).then(warInfo => {
@@ -61,6 +64,6 @@
                 });
             }).catch(error => console.error('Error loading data:', error));
         }).catch(error => console.error('Error loading data:', error));
-    </script>
+    </script>});
 </body>
 </html>
