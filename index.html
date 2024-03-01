@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Planets and Sectors Visualization with D3.js</title>
+    <title>SECTOR Galaxy map</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         .planet {
@@ -41,37 +41,25 @@
             fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/data/warStatus.json').then(res => res.json()),
             fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/data/warInfo.json').then(res => res.json())
         ]).then(([warStatus, warInfo]) => {
-            const planetsWithPlayers = warStatus.planetStatus.reduce((acc, planet) => {
-                acc[planet.index] = planet.players;
-                return acc;
-            }, {});
-
-            const planetsWithOwner = warStatus.planetStatus.reduce((acc, planet) => {
-                acc[planet.index] = planet.owner;
-                return acc;
-            }, {});
-
-            const planetsWithHealth = warStatus.planetStatus.reduce((acc, planet) => {
-                acc[planet.index] = planet.health;
+            const planetsParameters = warStatus.planetStatus.reduce((acc, planet) => {
+                acc[planet.index] = planet;
                 return acc;
             }, {});
 
             const sectorColors = d3.scaleOrdinal(d3.schemeCategory10); // For unique sector colors
 
             const planetPositions = warInfo.planetInfos.map(planet => {
-                const players = planetsWithPlayers[planet.index] || 0;
-                const owner = planetsWithOwner[planet.index] || 0;
-                const health = planetsWithHealth[planet.index] || 0;
+                const planetParam = planetsParameters[planet.index] || 0;
                 return {
                     x: planet.position.x * 400 +(800/2), // Scale and translate for visibility
                     y: planet.position.y * 400 +(800/2),
                     r: 3, 
-                    players: players,
+                    players: planetParam.players,
                     sector: planet.sector,
-                    owner: owner,
-                    health: health,
+                    owner: planetParam.owner,
+                    health: planetParam.health,
                     maxHealth: planet.maxHealth, 
-                    backgroundColor: players > 0 ? 'rgba(0, 191, 255, 0.7)' : 'rgba(255, 99, 132, 0.7)'
+                    backgroundColor: planetParam.players > 0 ? 'rgba(0, 191, 255, 0.7)' : 'rgba(255, 99, 132, 0.7)'
                 };
             });
 
