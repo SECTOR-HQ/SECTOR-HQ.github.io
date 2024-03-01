@@ -1,94 +1,73 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SECTOR-HQ War Status</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>Planets and Sectors Visualization with D3.js</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        .planet {
+            fill-opacity: 0.7;
+            stroke: #fff;
+            stroke-width: 1.5px;
+        }
+        .sector {
+            fill-opacity: 0.2;
+            stroke: #000;
+            stroke-width: 1;
+        }
+    </style>
 </head>
 <body>
-    <canvas id="planetPositionsChart" width="600" height="400"></canvas>
+    <svg width="800" height="600"></svg>
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/data/warStatus.json').then(response => response.json()).then(warStatus => {
-            fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/data/warInfo.json').then(response => response.json()).then(warInfo => {
-                const planetsWithPlayers = warStatus.planetStatus.reduce((acc, planet) => {
-                    acc[planet.index] = planet.players;
-                    return acc;
-                }, {});
+        Promise.all([
+            fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/data/warStatus.json').then(res => res.json()),
+            fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/data/warInfo.json').then(res => res.json())
+        ]).then(([warStatus, warInfo]) => {
+            const planetsWithPlayers = warStatus.planetStatus.reduce((acc, planet) => {
+                acc[planet.index] = planet.players;
+                return acc;
+            }, {});
 
-                const sectorColors = {};
-                const planetPositions = warInfo.planetInfos.map(planet => {
-                    const players = planetsWithPlayers[planet.index] || 0;
-                    sectorColors[planet.sector] = sectorColors[planet.sector] || (players > 0 ? 'rgba(0, 191, 255, 0.2)' : 'rgba(255, 99, 132, 0.2)');
-                    return {
-                        x: planet.position.x,
-                        y: planet.position.y,
-                        r: 3, // Radius of the planets on the graph
-                        players: players,
-                        sector: planet.sector,
-                        backgroundColor: players > 0 ? 'rgba(0, 191, 255, 0.7)' : 'rgba(255, 99, 132, 0.7)' // Differentiating colors
-                    };
-                });
+            const sectorColors = d3.scaleOrdinal(d3.schemeCategory10); // For unique sector colors
 
-                // Create a background blob for each sector
-                const sectorBlobs = Object.entries(sectorColors).map(([sector, color]) => {
-                    const planetsInSector = planetPositions.filter(planet => planet.sector == sector);
-                    return planetsInSector.map(planet => ({
-                        ...planet,
-                        r: 15, // Adjust the radius to create a blob effect
-                        backgroundColor: color
-                    }));
-                }).flat();
+            const planetPositions = warInfo.planetInfos.map(planet => {
+                const players = planetsWithPlayers[planet.index] || 0;
+                return {
+                    x: planet.position.x * 1000 + 400, // Scale and translate for visibility
+                    y: planet.position.y * 1000 + 300,
+                    r: 3 + players / 100, // Example scaling of radius based on players
+                    players: players,
+                    sector: planet.sector,
+                    backgroundColor: players > 0 ? 'rgba(0, 191, 255, 0.7)' : 'rgba(255, 99, 132, 0.7)'
+                };
+            });
 
-                var ctx = document.getElementById('planetPositionsChart').getContext('2d');
-                new Chart(ctx, {
-                    type: 'bubble',
-                    data: {
-                        datasets: [
-                        {
-                            label: 'Sector Blobs',
-                            data: sectorBlobs,
-                            backgroundColor: function(context) {
-                                var index = context.dataIndex;
-                                var value = context.dataset.data[index];
-                                return value.backgroundColor;
-                            }
-                        },
-                        {
-                            label: 'Planets',
-                            data: planetPositions,
-                            backgroundColor: function(context) {
-                                var index = context.dataIndex;
-                                var value = context.dataset.data[index];
-                                return value.backgroundColor;
-                            }
-                        }]
-                    },
-                    options: {
-                        plugins: {
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        var label = context.dataset.label;
-                                        if (label === 'Planets') {
-                                            label = `Planet in Sector: ${context.raw.sector}`;
-                                            label += `\nPlayers: ${context.raw.players}`;
-                                        }
-                                        return label;
-                                    }
-                                }
-                            }
-                        },
-                        scales: {
-                            x: {type: 'linear', position: 'bottom'},
-                            y: {type: 'linear', position: 'left'}
-                        }
-                    }
-                });
-            }).catch(error => console.error('Error loading data:', error));
-        }).catch(error => console.error('Error loading data:', error));
-    });
+            renderVisualization(planetPositions, sectorColors);
+        });
+
+        function renderVisualization(planets, sectorColors) {
+            const svg = d3.select('svg');
+
+            // Draw sector backgrounds
+            planets.forEach(d => {
+                svg.append('circle')
+                    .attr('cx', d.x)
+                    .attr('cy', d.y)
+                    .attr('r', 20) // Example static radius for sector background
+                    .attr('fill', sectorColors(d.sector))
+                    .attr('class', 'sector');
+            });
+
+            // Draw planets
+            planets.forEach(d => {
+                svg.append('circle')
+                    .attr('cx', d.x)
+                    .attr('cy', d.y)
+                    .attr('r', d.r)
+                    .attr('fill', d.backgroundColor)
+                    .attr('class', 'planet');
+            });
+        }
     </script>
 </body>
 </html>
