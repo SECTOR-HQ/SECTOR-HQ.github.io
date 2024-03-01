@@ -9,7 +9,6 @@
             stroke-width: 1px; /* Default stroke width */
             cursor: pointer; /* Change cursor to a pointer to indicate interactivity */
         }
-
         .tooltip {
             position: absolute;
             background-color: lightsteelblue;
@@ -23,55 +22,121 @@
             color: #000; /* Text color */
             font-size: 12px; /* Text size */
             z-index: 10; /* Ensure tooltip is above other elements */
-        }
-        
+        }        
         .planet:hover {
             stroke: yellow;
             stroke-width: 2px;
+        }        
+        body, html {
+            height: 100%;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            height: 100%;
+            display: flex;
+            flex-wrap: nowrap;
+        }
+        .map-container {
+            flex-grow: 1; /* Take up the remaining space */
+            background-color: #f0f0f0; /* Placeholder color */
+            display: flex;
+            align-items: center; /* Center the content vertically */
+            justify-content: center; /* Center the content horizontally */
+        }
+        .sidebar {
+            width: 300px; /* Fixed width */
+            background-color: #ddd; /* Placeholder color */
+            display: flex;
+            flex-direction: column; /* Stack children vertically */
+        }
+        .news-feed, .game-stats {
+            flex-grow: 1; /* Each takes up equal space */
+            display: flex;
+            align-items: center; /* Center the content vertically */
+            justify-content: center; /* Center the content horizontally */
+            border-bottom: 2px solid #bbb; /* Add a border between the sections */
+        }
+        .game-stats {
+            border-bottom: none; /* No border for the last element */
         }
     </style>
 </head>
 <body>
-    <svg width="800" height="800"></svg>
+    <div class="container">
+        <div class="map-container">
+            <svg width=100% height=100%></svg>
+        </div>
+        <div class="sidebar">
+            <div class="news-feed">
+                <div>NEWS FEED</div>
+            </div>
+            <div class="game-stats">
+                <div>GAME STATS</div>
+            </div>
+        </div>
+    </div>
+    
     <div class="tooltip"></div> <!-- Tooltip container -->
     <script>
         const tooltip = d3.select('.tooltip');
 
         Promise.all([
-            fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/data/warStatus.json').then(res => res.json()),
-            fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/data/warInfo.json').then(res => res.json())
-        ]).then(([warStatus, warInfo]) => {
-            const planetsParameters = warStatus.planetStatus.reduce((acc, planet) => {
-                acc[planet.index] = planet;
-                return acc;
-            }, {});
+            fetch('https://helldivers-2.fly.dev/api/801/status').then(res => res.json())
+        ]).then(([warStatus]) => {           
 
             const sectorColors = d3.scaleOrdinal(d3.schemeCategory10); // For unique sector colors
 
-            const planetPositions = warInfo.planetInfos.map(planet => {
-                const planetParam = planetsParameters[planet.index] || 0;
+            const planetPositions = warStatus.planet_status.map(status => {
+                
                 return {
-                    x: planet.position.x * 400 +(800/2), // Scale and translate for visibility
-                    y: planet.position.y * 400 +(800/2),
+                    x: status.planet.position.x, // Scale and translate for visibility
+                    y: status.planet.position.y,
                     r: 3, 
-                    players: planetParam.players,
-                    sector: planet.sector,
-                    owner: planetParam.owner,
-                    health: planetParam.health,
-                    maxHealth: planet.maxHealth, 
-                    backgroundColor: planetParam.players > 0 ? 'rgba(0, 191, 255, 0.7)' : 'rgba(255, 99, 132, 0.7)'
+                    players: status.players,
+                    sector: status.planet.sector,
+                    owner: status.owner,
+                    health: status.health,
+                    maxHealth: status.planet.maxHealth, 
+                    backgroundColor: status.players > 0 ? 'rgba(0, 191, 255, 0.7)' : 'rgba(255, 99, 132, 0.7)'
                 };
             });
-
             renderVisualization(planetPositions, sectorColors);
+            window.addEventListener('resize', () => {
+                renderVisualization(planetPositions, sectorColors); // Call the function again to re-render the visualization
+            });
+           
         });
 
         function renderVisualization(planets, sectorColors) {
             const svg = d3.select('svg');
+            const svgWidth = svg.node().getBoundingClientRect().width;
+            const svgHeight = svg.node().getBoundingClientRect().height;   
             
-            
+            const width = +svg.attr('width');
+            const height = +svg.attr('height');
+
+            // Create a zoom behavior
+            const zoom = d3.zoom()
+                .scaleExtent([0.5, 8]) // Limits for scale (zoom)
+                .on('zoom', (event) => {
+                    // Apply the zoom transform to the group element inside the SVG
+                    g.attr('transform', event.transform);
+                });
+
+            // Append a group element to the SVG, which will hold all the elements you want to zoom
+            const g = svg.append('g');
+
+            // Apply the zoom behavior to the SVG
+            svg.call(zoom);
+
+            planets.forEach(planet => {
+                planet.x = planet.x * (svgWidth / 2) + (svgWidth / 2);
+                planet.y = planet.y * (svgHeight / 2) + (svgHeight / 2);
+            });
+
             // Draw planets
-            svg.selectAll('.planet')
+            g.selectAll('.planet')
                 .data(planets)
                 .enter().append('circle')
                 .attr('class', 'planet')
