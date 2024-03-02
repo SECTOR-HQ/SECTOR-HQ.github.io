@@ -1,13 +1,13 @@
-<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>SECTOR Galaxy map</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SECTOR Galaxy Map</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         .planet {
-            stroke: #fff; /* Default stroke color */
-            stroke-width: 1px; /* Default stroke width */
-            cursor: pointer; /* Change cursor to a pointer to indicate interactivity */
+            cursor: crosshair; /* Change cursor to a pointer to indicate interactivity */
         }
         .tooltip {
             position: absolute;
@@ -22,142 +22,161 @@
             color: #000; /* Text color */
             font-size: 12px; /* Text size */
             z-index: 10; /* Ensure tooltip is above other elements */
-        }        
+        }
         .planet:hover {
             stroke: yellow;
             stroke-width: 2px;
-        }        
-        body, html {
-            height: 100%;
-            margin: 0;
-            font-family: Arial, sans-serif;
-        }
-        .container {
-            height: 100%;
-            display: flex;
-            flex-wrap: nowrap;
         }
         .map-container {
-            flex-grow: 1; /* Take up the remaining space */
-            background-color: #f0f0f0; /* Placeholder color */
-            display: flex;
-            align-items: center; /* Center the content vertically */
-            justify-content: center; /* Center the content horizontally */
+            background-color: #000;
+            background-image: linear-gradient(45deg, rgba(0, 0, 0, 0.1) 25%, transparent 25%, transparent 50%, rgba(0, 0, 0, 0.1) 50%, rgba(0, 0, 0, 0.1) 75%, transparent 75%, transparent);
+            background-size: 50px 50px;
+            animation: slide 4s linear infinite;
         }
         .sidebar {
-            width: 300px; /* Fixed width */
-            background-color: #ddd; /* Placeholder color */
-            display: flex;
-            flex-direction: column; /* Stack children vertically */
+            width: 300px; /* Set the sidebar width */
+            overflow-y: auto; /* Make the sidebar scrollable vertically */
+            height: 100vh; /* Optional: You might want to set a fixed height, e.g., to fill the viewport height */
         }
-        .news-feed, .game-stats {
-            flex-grow: 1; /* Each takes up equal space */
-            display: flex;
-            align-items: center; /* Center the content vertically */
-            justify-content: center; /* Center the content horizontally */
-            border-bottom: 2px solid #bbb; /* Add a border between the sections */
+        .news-item {
+            border-bottom: 1px solid #ccc; /* Adds a light gray line as a splitter */
+            padding-bottom: 10px; /* Adds some space below each news item */
+            margin-bottom: 10px; /* Adds some space before the start of the next news item */
         }
-        .game-stats {
-            border-bottom: none; /* No border for the last element */
+
+        .news-item h6 {
+            text-align: center; /* Centers the title */
+            margin-top: 10px; /* Adds some space at the top of the title */
         }
+
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="map-container">
-            <svg width=100% height=100%></svg>
-        </div>
-        <div class="sidebar">
-            <div class="news-feed">
-                <div>NEWS FEED</div>
+    <div class="container-fluid h-100">
+        <div class="row h-100">
+            <div class="col-md-9 map-container d-flex align-items-center justify-content-center p-0">
+                <svg width="100%" height="100%"></svg>
             </div>
-            <div class="game-stats">
-                <div>GAME STATS</div>
+            <div class="col-md-3 sidebar bg-light">
+                <div class="news-feed p-3 border-bottom">
+                    <h5>NEWS FEED</h5>
+                </div>
+                <div class="game-stats p-3">
+                    <h5>GAME STATS</h5>
+                </div>
             </div>
         </div>
     </div>
     
     <div class="tooltip"></div> <!-- Tooltip container -->
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.0.6/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
     <script>
-            const tooltip = d3.select('.tooltip');
-            let warInfo, warStatus, factions, planets, sectors;
+        const tooltip = d3.select('.tooltip');
+        let warInfo, warStatus, factions, planets, sectors;
 
-            // Fetch all data asynchronously and then process
-            function loadData() {
-                Promise.all([
-                    fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/data/warInfo.json').then(res => res.json()),
-                    fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/data/warStatus.json').then(res => res.json()),
-                    fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/static/factions.json').then(res => res.json()),
-                    fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/static/planets.json').then(res => res.json()),
-                    fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/static/sectors.json').then(res => res.json())
-                ]).then(data => {
-                    // Destructure the resolved promise array to get individual data sets
-                    [warInfo, warStatus, factions, planets, sectors] = data;
-                    processDataAndRender();
-                }).catch(error => {
-                    console.error("Error loading data: ", error);
-                });
-            }
+        // Fetch all data asynchronously and then process
+        function loadData() {
+            Promise.all([
+                fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/data/warInfo.json').then(res => res.json()),
+                fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/data/warStatus.json').then(res => res.json()),
+                fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/static/factions.json').then(res => res.json()),
+                fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/static/planets.json').then(res => res.json()),
+                fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/static/sectors.json').then(res => res.json())
+            ]).then(data => {
+                // Destructure the resolved promise array to get individual data sets
+                [warInfo, warStatus, factions, planets, sectors] = data;
+                processDataAndRender();
+                addNewsFeedItems(warStatus.globalEvents);
+            }).catch(error => {
+                console.error("Error loading data: ", error);
+            });
+        }
 
-            function processDataAndRender() {
-                // Now we have warInfo, warStatus, factions, planets, sectors available to use
-                // Proceed with the rest of the data processing and visualization rendering
+        function processDataAndRender() {
+            // Now we have warInfo, warStatus, factions, planets, sectors available to use
+            // Proceed with the rest of the data processing and visualization rendering
 
-                // Example: Map factions for easy access, similar for planets and sectors
-                const factionsMap = factions;
-                const planetsMap = planets;
-                const sectorsMap = sectors;      
-            
-                const planetsParameters = warStatus.planetStatus.reduce((acc, planet) => {
-                    acc[planet.index] = planet;  
-                    return acc;
-                }, {});
+            // Example: Map factions for easy access, similar for planets and sectors
+            const factionsMap = factions;
+            const planetsMap = planets;
+            const sectorsMap = sectors;      
         
-                const campaignIndices = new Set(warStatus.campaigns.map(campaign => campaign.planetIndex));
+            const planetsParameters = warStatus.planetStatus.reduce((acc, planet) => {
+                acc[planet.index] = planet;  
+                return acc;
+            }, {});
+    
+            const campaignIndices = new Set(warStatus.campaigns.map(campaign => campaign.planetIndex));
+    
+            const planetPositions = warInfo.planetInfos.map(planet => {   
+                const planetParam = planetsParameters[planet.index] || {};             
+                return {
+                    x: planet.position.x, 
+                    y: planet.position.y * -1,
+                    r: 10, // Radius of planets for calculations and drawing
+                    campaign: campaignIndices.has(planet.index),
+                    name: planetsMap[planet.index] || "unnamed",
+                    id: planet.index,
+                    players: planetParam.players,
+                    sector: sectorsMap[planet.sector] || "unnamed",
+                    owner: factionsMap[planetParam.owner] || "unnamed",
+                    health: planetParam.health,
+                    maxHealth: planet.maxHealth,
+                    backgroundColor: getPlanetColor(factionsMap[planetParam.owner] || "unnamed"),
+                };
+            });
         
-                const planetPositions = warInfo.planetInfos.map(planet => {   
-                    const planetParam = planetsParameters[planet.index] || {};             
-                    return {
-                        x: planet.position.x, 
-                        y: planet.position.y * -1,
-                        r: 10, // Radius of planets for calculations and drawing
-                        campaign: campaignIndices.has(planet.index),
-                        name: planetsMap[planet.index] || "unnamed",
-                        id: planet.index,
-                        players: planetParam.players,
-                        sector: sectorsMap[planet.sector] || "unnamed",
-                        owner: factionsMap[planetParam.owner] || "unnamed",
-                        health: planetParam.health,
-                        maxHealth: planet.maxHealth,
-                        backgroundColor: getPlanetColor(factionsMap[planetParam.owner] || "unnamed"),
-                    };
-                });
-            
-            renderVisualization(planetPositions, warStatus.planetAttacks);
-            };
+        renderVisualization(planetPositions, warStatus.planetAttacks);
+        };
 
-            function setupResize() {
-                window.addEventListener('resize', resize);
-            };
 
-            function resize() {
-                // Update SVG dimensions
-                const svg = d3.select('svg');
-                const container = d3.select('.map-container');
-                const width = container.node().getBoundingClientRect().width;
-                const height = container.node().getBoundingClientRect().height;
-                svg.attr('width', width).attr('height', height);
+        function addNewsFeedItems(globalEvents) {
+            const newsFeedContainer = document.querySelector('.news-feed');
 
-                // Optionally, recompute scales if your visualization depends on dimensions
-                // For example, update scales or any other dimension-sensitive elements
+            globalEvents.forEach(event => {
+                if (event.message) {
+                    const newsItem = document.createElement('div');
+                    newsItem.classList.add('news-item');
 
-                // Clear the previous visualization elements if necessary
-                svg.selectAll("*").remove(); // This clears the SVG. Be careful as this will remove everything, including defs etc.
+                    const title = document.createElement('h6');
+                    title.textContent = event.title;
+                    newsItem.appendChild(title);
 
-                // Call renderVisualization or any other function that draws your visualization
-                // You might need to pass the new width and height if those are used within the function
-                processDataAndRender(); // Or directly call renderVisualization with updated parameters if applicable
-            };
+                    const message = document.createElement('p');
+                    message.innerHTML = event.message.replace(/\n/g, '<br>');
+                    newsItem.appendChild(message);
+
+                    newsFeedContainer.appendChild(newsItem);
+                }
+            });
+        }
+
+        function setupResize() {
+            window.addEventListener('resize', resize);
+        };
+
+        function resize() {
+            // Update SVG dimensions
+            const svg = d3.select('svg');
+            const container = d3.select('.map-container');
+            const width = container.node().getBoundingClientRect().width;
+            const height = container.node().getBoundingClientRect().height;
+            svg.attr('width', width).attr('height', height);
+
+            // Optionally, recompute scales if your visualization depends on dimensions
+            // For example, update scales or any other dimension-sensitive elements
+
+            // Clear the previous visualization elements if necessary
+            svg.selectAll("*").remove(); // This clears the SVG. Be careful as this will remove everything, including defs etc.
+
+            // Call renderVisualization or any other function that draws your visualization
+            // You might need to pass the new width and height if those are used within the function
+            processDataAndRender(); // Or directly call renderVisualization with updated parameters if applicable
+        };
 
         loadData();
         setupResize();
@@ -200,8 +219,8 @@
             };
 
             planets.forEach(planet => {
-                planet.x = planet.x * (svgWidth / 2) + (svgWidth / 2);
-                planet.y = planet.y * (svgHeight / 2) + (svgHeight / 2);
+                planet.x = planet.x * (Math.min(svgWidth, svgHeight) / 2) + (svgWidth / 2);
+                planet.y = planet.y * (Math.min(svgWidth, svgHeight) / 2) + (svgHeight / 2);
                 planet.r = ((svgHeight / 2) + (svgHeight / 2))*0.009;
                 drawPlanet(planet);
             });
@@ -218,8 +237,9 @@
                 arcs.forEach((d, i) => {
                     g.append('path')
                         .attr('d', arcPath(d))
+                        .attr('class', 'planet')
                         .attr('transform', `translate(${planet.x}, ${planet.y})`)
-                        .attr('fill', i === 0 ? planet.backgroundColor : 'darkred')
+                        .attr('fill', i === 0 ? planet.backgroundColor : 'rgba(0, 191, 255, 0.7)')
                         .on('mouseover', event => showTooltip(event, planet))
                         .on('mousemove', event => moveTooltip(event))
                         .on('mouseout', hideTooltip);
