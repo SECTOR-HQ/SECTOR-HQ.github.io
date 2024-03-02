@@ -79,61 +79,130 @@
     
     <div class="tooltip"></div> <!-- Tooltip container -->
     <script>
-        const tooltip = d3.select('.tooltip');
-        Promise.all([
-            fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/data/warInfo.json').then(res => res.json()),
-            fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/data/warStatus.json').then(res => res.json())
-        ]).then(([warInfo, warStatus]) => {     
-            const planetsParameters = warStatus.planetStatus.reduce((acc, planet) => {
-                acc[planet.index] = planet;  
-                return acc;
-            }, {});
-    
-            const campaignIndices = new Set(warStatus.campaigns.map(campaign => campaign.planetIndex));
-    
-            const planetPositions = warInfo.planetInfos.map(planet => {   
-                const planetParam = planetsParameters[planet.index] || {};             
-                return {
-                    x: planet.position.x, 
-                    y: planet.position.y * -1,
-                    r: 10, // Radius of planets for calculations and drawing
-                    campaign: campaignIndices.has(planet.index),
-                    name: planet.index,
-                    players: planetParam.players,
-                    sector: planet.sector,
-                    owner: planetParam.owner,
-                    health: planetParam.health,
-                    maxHealth: planet.maxHealth,
-                    backgroundColor: planetParam.players > 0 ? 'rgba(0, 191, 255, 0.7)' : 'rgba(255, 99, 132, 0.7)'
-                };
-            });
-    
+            const tooltip = d3.select('.tooltip');
+            let warInfo, warStatus, factions, planets, sectors;
+
+            // Fetch all data asynchronously and then process
+            function loadData() {
+                Promise.all([
+                    fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/data/warInfo.json').then(res => res.json()),
+                    fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/data/warStatus.json').then(res => res.json()),
+                    fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/static/factions.json').then(res => res.json()),
+                    fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/static/planets.json').then(res => res.json()),
+                    fetch('https://raw.githubusercontent.com/SECTOR-HQ/SECTOR-DATA/main/static/sectors.json').then(res => res.json())
+                ]).then(data => {
+                    // Destructure the resolved promise array to get individual data sets
+                    [warInfo, warStatus, factions, planets, sectors] = data;
+                    processDataAndRender();
+                }).catch(error => {
+                    console.error("Error loading data: ", error);
+                });
+            }
+
+            function processDataAndRender() {
+                // Now we have warInfo, warStatus, factions, planets, sectors available to use
+                // Proceed with the rest of the data processing and visualization rendering
+
+                // Example: Map factions for easy access, similar for planets and sectors
+                const factionsMap = factions;
+                const planetsMap = planets;
+                const sectorsMap = sectors;      
+            
+                const planetsParameters = warStatus.planetStatus.reduce((acc, planet) => {
+                    acc[planet.index] = planet;  
+                    return acc;
+                }, {});
+        
+                const campaignIndices = new Set(warStatus.campaigns.map(campaign => campaign.planetIndex));
+        
+                const planetPositions = warInfo.planetInfos.map(planet => {   
+                    const planetParam = planetsParameters[planet.index] || {};             
+                    return {
+                        x: planet.position.x, 
+                        y: planet.position.y * -1,
+                        r: 10, // Radius of planets for calculations and drawing
+                        campaign: campaignIndices.has(planet.index),
+                        name: planetsMap[planet.index] || "unnamed",
+                        id: planet.index,
+                        players: planetParam.players,
+                        sector: sectorsMap[planet.sector] || "unnamed",
+                        owner: factionsMap[planetParam.owner] || "unnamed",
+                        health: planetParam.health,
+                        maxHealth: planet.maxHealth,
+                        backgroundColor: getPlanetColor(factionsMap[planetParam.owner] || "unnamed"),
+                    };
+                });
+            
             renderVisualization(planetPositions, warStatus.planetAttacks);
-        });
-    
+            };
+
+            function setupResize() {
+                window.addEventListener('resize', resize);
+            };
+
+            function resize() {
+                // Update SVG dimensions
+                const svg = d3.select('svg');
+                const container = d3.select('.map-container');
+                const width = container.node().getBoundingClientRect().width;
+                const height = container.node().getBoundingClientRect().height;
+                svg.attr('width', width).attr('height', height);
+
+                // Optionally, recompute scales if your visualization depends on dimensions
+                // For example, update scales or any other dimension-sensitive elements
+
+                // Clear the previous visualization elements if necessary
+                svg.selectAll("*").remove(); // This clears the SVG. Be careful as this will remove everything, including defs etc.
+
+                // Call renderVisualization or any other function that draws your visualization
+                // You might need to pass the new width and height if those are used within the function
+                processDataAndRender(); // Or directly call renderVisualization with updated parameters if applicable
+            };
+
+        loadData();
+        setupResize();
+
+        function getPlanetColor(owner) {
+            console.log(owner)
+            switch (owner) {
+                case 'Humans':
+                    return 'rgba(0, 191, 255, 0.7)'; // Blue with opacity for Humans
+                case 'Terminids':
+                    return 'rgba(204, 204, 0, 0.7)'; // Dark yellow (approximation) with opacity for Terminids
+                case 'Automaton':
+                    return 'rgba(255, 0, 0, 0.7)'; // Red with opacity for Automaton
+                default:
+                    return 'rgba(128, 128, 128, 0.7)'; // Gray with opacity for unowned or unknown
+            };
+        };
+
+
         function renderVisualization(planets, attacks) {
             const svg = d3.select('svg');
             const svgWidth = svg.node().getBoundingClientRect().width;
             const svgHeight = svg.node().getBoundingClientRect().height;   
+            
             const zoom = d3.zoom()
                 .scaleExtent([0.5, 8])
                 .on('zoom', (event) => {
                     g.attr('transform', event.transform);
                 });
             const g = svg.append('g');
+
             svg.call(zoom);
 
             const calculateArrowPath = (source, target, radius) => {
                 const dx = target.x - source.x;
                 const dy = target.y - source.y;
                 const angle = Math.atan2(dy, dx);
-                const length = Math.sqrt(dx * dx + dy * dy) - radius*2.5;
+                const length = Math.sqrt(dx * dx + dy * dy) - radius*1.5;
                 return {x: source.x + Math.cos(angle) * length, y: source.y + Math.sin(angle) * length};
             };
 
             planets.forEach(planet => {
                 planet.x = planet.x * (svgWidth / 2) + (svgWidth / 2);
                 planet.y = planet.y * (svgHeight / 2) + (svgHeight / 2);
+                planet.r = ((svgHeight / 2) + (svgHeight / 2))*0.009;
                 drawPlanet(planet);
             });
 
@@ -150,7 +219,7 @@
                     g.append('path')
                         .attr('d', arcPath(d))
                         .attr('transform', `translate(${planet.x}, ${planet.y})`)
-                        .attr('fill', i === 0 ? planet.backgroundColor : 'lightgrey')
+                        .attr('fill', i === 0 ? planet.backgroundColor : 'darkred')
                         .on('mouseover', event => showTooltip(event, planet))
                         .on('mousemove', event => moveTooltip(event))
                         .on('mouseout', hideTooltip);
@@ -162,7 +231,8 @@
                             <strong>Sector:</strong> ${d.sector}<br>
                             <strong>Owner:</strong> ${d.owner}<br>
                             <strong>Health:</strong> ${d.health}/${d.maxHealth}<br>
-                            <strong>Players:</strong> ${d.players}`)
+                            <strong>Players:</strong> ${d.players}<br>
+                            <strong>campaign:</strong> ${d.campaign}<br>`)
                     .style('visibility', 'visible')
                     .style('opacity', 1)
                     .style('left', `${event.pageX + 10}px`)
@@ -179,14 +249,15 @@
                     .style('opacity', 0);
             }
 
-            attacks.forEach(attack => {
-                const source = planets.find(p => p.name === attack.source);
-                const target = planets.find(p => p.name === attack.target);
+            attacks.forEach(attack => {                
+                const source = planets.find(p => p.id === attack.source);
+                const target = planets.find(p => p.id === attack.target);
                 if (source && target) {
                     const arrowEnd = calculateArrowPath(source, target, target.r);
+                    const arrowStart = calculateArrowPath(target, source, target.r-2.5);
                     g.append('line')
-                    .attr('x1', source.x)
-                    .attr('y1', source.y)
+                    .attr('x1', arrowStart.x)
+                    .attr('y1', arrowStart.y)
                     .attr('x2', arrowEnd.x)
                     .attr('y2', arrowEnd.y)
                     .attr('stroke', 'red')
@@ -194,16 +265,18 @@
                     .attr('marker-end', 'url(#arrowhead)');
                 }
             });
+            
+            const defs = svg.append('defs');
 
-            svg.append('svg:defs').append('svg:marker')
+            defs.append('marker')
                 .attr('id', 'arrowhead')
-                .attr('refX', 6)
-                .attr('refY', 6)
-                .attr('markerWidth', 30)
-                .attr('markerHeight', 30)
+                .attr('refX', 5)
+                .attr('refY', 3)
+                .attr('markerWidth', 6)
+                .attr('markerHeight', 6)
                 .attr('orient', 'auto')
                 .append('path')
-                    .attr('d', 'M 0 0 12 6 0 12 3 6')
+                    .attr('d', 'M 0 0 L 6 3 L 0 6 Z')
                     .style('fill', 'red');
         }
     </script>
