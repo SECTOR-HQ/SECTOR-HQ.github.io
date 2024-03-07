@@ -148,10 +148,10 @@
                     y: planet.position.y * -1,
                     r: 10, // Radius of planets for calculations and drawing
                     campaign: campaignIndices.has(planet.index),
-                    name: planetsMap[planet.index] || planet.index,
+                    name: planetsMap[planet.index] + " " + planet.index || planet.index,
                     id: planet.index,
                     players: planetParam.players,
-                    sector: sectorsMap[planet.sector] || planet.sector,
+                    sector: sectorsMap[planet.sector] + " " + planet.sector || planet.sector,
                     owner: factionsMap[planetParam.owner] || planetParam.owner,
                     health: planetParam.health,
                     maxHealth: planet.maxHealth,
